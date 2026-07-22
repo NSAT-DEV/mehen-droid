@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mehen — Game of the Snake</title>
+<meta name="description" content="The ancient Egyptian game of the coiled serpent, reborn for Android. Guess your rival's hidden marbles, march your pharaohs along the snake, and ascend to Ra.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Sans+Egyptian+Hieroglyphs&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-top:#14141A; --bg-bottom:#1A2133; --panel:#242B38; --panel-2:#2C3444;
+    --gold:#E6B31A; --gold-soft:#f0cf6a; --gold-deep:#b98a12;
+    --snake-head:#1F9E0D; --snake-mid:#2E8C14; --snake-tail:#40731A;
+    --stone-a:#B88C26; --stone-b:#9E7A1F;
+    --ink:#F2D9CC; --ink-dim:#B8A699; --line:rgba(230,179,26,.16);
+    --red:#FF3B30; --blue:#0A84FF;
+    --wrap:1160px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(230,179,26,.10), transparent 60%),
+      radial-gradient(900px 600px at 8% 110%, rgba(31,158,13,.10), transparent 55%),
+      linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:"Spectral", Georgia, serif;
+    font-weight:400; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  .glyph{font-family:"Noto Sans Egyptian Hieroglyphs","Spectral",serif;}
+  .wrap{max-width:var(--wrap); margin-inline:auto; padding-inline:clamp(20px,5vw,40px);}
+  a{color:inherit}
+  .eyebrow{
+    font-family:"Cinzel",serif; font-weight:600; letter-spacing:.32em;
+    text-transform:uppercase; font-size:.72rem; color:var(--gold);
+    display:inline-flex; align-items:center; gap:.7em;
+  }
+  .eyebrow::before, .eyebrow::after{content:""; height:1px; width:26px; background:linear-gradient(90deg,transparent,var(--gold));}
+  .eyebrow.solo::after{display:none}
+  h1,h2,h3{font-family:"Cinzel",serif; line-height:1.08; margin:0; font-weight:700;}
+
+  /* ---------- HERO ---------- */
+  header.hero{position:relative; padding:clamp(28px,6vw,64px) 0 clamp(40px,7vw,80px);}
+  .hero-grid{display:grid; grid-template-columns:1.05fr 1fr; gap:clamp(24px,5vw,56px); align-items:center;}
+  .hero-copy{max-width:36ch}
+  .wordmark{
+    font-family:"Cinzel",serif; font-weight:800;
+    font-size:clamp(3.6rem,11vw,7rem); letter-spacing:.06em;
+    margin:.18em 0 .04em; line-height:.92;
+    background:linear-gradient(180deg,#fbe9a8, var(--gold) 55%, var(--gold-deep));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 2px 40px rgba(230,179,26,.15);
+  }
+  .subtitle{font-family:"Cinzel",serif; font-weight:500; letter-spacing:.22em; text-transform:uppercase;
+    font-size:clamp(.82rem,2.2vw,1rem); color:var(--ink); opacity:.9; margin-bottom:1.2rem;}
+  .lede{font-size:1.12rem; color:var(--ink-dim); margin:0 0 2rem;}
+  .lede b{color:var(--ink); font-weight:600;}
+  .cta-row{display:flex; flex-wrap:wrap; gap:14px 18px; align-items:center;}
+  .btn{
+    --pad:16px 26px;
+    display:inline-flex; align-items:center; gap:.7em; padding:var(--pad);
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:.04em; font-size:1rem;
+    color:#20180a; text-decoration:none; border-radius:12px; border:1px solid var(--gold-soft);
+    background:linear-gradient(180deg,#f4d873,var(--gold) 60%,var(--gold-deep));
+    box-shadow:0 10px 30px -8px rgba(230,179,26,.5), inset 0 1px 0 rgba(255,255,255,.5);
+    position:relative; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .btn:hover{transform:translateY(-2px); box-shadow:0 16px 40px -8px rgba(230,179,26,.6), inset 0 1px 0 rgba(255,255,255,.6);}
+  .btn:active{transform:translateY(0)}
+  .btn svg{width:20px;height:20px;fill:#20180a}
+  .btn::after{content:""; position:absolute; inset:0; transform:translateX(-120%);
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent); }
+  .btn:hover::after{animation:shine .9s ease}
+  @keyframes shine{to{transform:translateX(120%)}}
+  .btn-meta{font-family:"Spectral",serif; font-size:.9rem; color:var(--ink-dim);}
+  .btn-meta b{color:var(--gold-soft); font-weight:600}
+  .ghost{font-family:"Cinzel",serif; font-weight:600; letter-spacing:.08em; font-size:.86rem;
+    text-transform:uppercase; text-decoration:none; color:var(--ink); border-bottom:1px solid var(--line);
+    padding-bottom:3px; transition:border-color .2s, color .2s;}
+  .ghost:hover{color:var(--gold); border-color:var(--gold);}
+
+  /* board */
+  .board-wrap{position:relative; justify-self:center; width:100%; max-width:520px;}
+  .board{width:100%; height:auto; display:block; overflow:visible; filter:drop-shadow(0 30px 60px rgba(0,0,0,.5));}
+  .serpent{fill:none; stroke:url(#snakeGrad); stroke-width:16; stroke-linecap:round; stroke-linejoin:round;}
+  .serpent-glow{fill:none; stroke:var(--snake-mid); stroke-width:24; stroke-linecap:round; opacity:.28; filter:blur(6px);}
+  .stone{fill:var(--stone-a); stroke:rgba(0,0,0,.25); stroke-width:1;}
+  .head-stone{fill:var(--gold-soft)}
+  .ra-core{fill:url(#raGrad)}
+  .ra-halo{fill:url(#raHalo)}
+  .piece{stroke:#fff; stroke-width:2}
+  .piece.red{fill:var(--red)} .piece.blue{fill:var(--blue)}
+  .board-cap{margin-top:14px; text-align:center; font-size:.82rem; color:var(--ink-dim);}
+  .board-cap .glyph{color:var(--gold); font-size:1rem; margin:0 .15em}
+
+  /* ---------- dividers & sections ---------- */
+  .rule{display:flex; align-items:center; gap:1rem; color:var(--gold); opacity:.5; justify-content:center; padding:8px 0;}
+  .rule::before,.rule::after{content:""; height:1px; flex:1; max-width:200px; background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+  .rule .glyph{font-size:1.3rem}
+  section{padding:clamp(48px,8vw,92px) 0;}
+  .sec-head{max-width:60ch}
+  .sec-head h2{font-size:clamp(1.8rem,4.6vw,2.9rem); margin:.5rem 0 .6rem;}
+  .sec-head p{color:var(--ink-dim); font-size:1.08rem; margin:0;}
+
+  .intro-cols{display:grid; grid-template-columns:1.2fr 1fr; gap:clamp(24px,5vw,56px); align-items:start; margin-top:1.5rem;}
+  .intro-cols p{margin:0 0 1rem; font-size:1.08rem;}
+  .pull{font-family:"Cinzel",serif; font-weight:600; font-size:1.15rem; line-height:1.4;
+    color:var(--ink); border-left:2px solid var(--gold); padding:.2rem 0 .2rem 1.2rem;}
+  .pull .glyph{color:var(--gold)}
+
+  /* features */
+  .feat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:2.2rem;}
+  .card{background:linear-gradient(180deg,rgba(44,52,68,.72),rgba(36,43,56,.72));
+    border:1px solid rgba(230,179,26,.14); border-radius:16px; padding:26px 24px;
+    transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;}
+  .card:hover{transform:translateY(-4px); border-color:rgba(230,179,26,.4); box-shadow:0 20px 40px -20px rgba(0,0,0,.7);}
+  .card .ico{font-size:1.9rem; line-height:1; display:block; margin-bottom:.7rem;}
+  .card h3{font-size:1.16rem; letter-spacing:.02em; margin-bottom:.5rem;}
+  .card p{margin:0; color:var(--ink-dim); font-size:.98rem;}
+  .card.wide{grid-column:span 3; display:flex; gap:24px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+  .card.wide .ico{margin:0}
+  .card.wide div{flex:1; min-width:220px}
+
+  /* how to play */
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:2.2rem;}
+  .step{position:relative; padding-top:1.2rem;}
+  .step .num{font-family:"Cinzel",serif; font-weight:700; font-size:2.4rem; color:var(--gold); opacity:.85; line-height:1;}
+  .step h3{font-size:1.14rem; margin:.5rem 0 .45rem;}
+  .step p{margin:0; color:var(--ink-dim); font-size:1rem;}
+  .win-note{margin-top:2rem; padding:20px 24px; border-radius:14px;
+    background:radial-gradient(120% 140% at 0% 0%, rgba(230,179,26,.14), transparent 60%);
+    border:1px solid rgba(230,179,26,.22); font-size:1.05rem;}
+  .win-note b{font-family:"Cinzel",serif; color:var(--gold-soft); font-weight:600;}
+
+  /* install */
+  .install-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(24px,5vw,48px); align-items:center; margin-top:1.5rem;}
+  ol.install{list-style:none; counter-reset:s; margin:0; padding:0;}
+  ol.install li{counter-increment:s; position:relative; padding:14px 0 14px 52px; border-bottom:1px solid rgba(230,179,26,.1);}
+  ol.install li:last-child{border-bottom:0}
+  ol.install li::before{content:counter(s); position:absolute; left:0; top:12px;
+    width:34px; height:34px; display:grid; place-items:center; border-radius:9px;
+    font-family:"Cinzel",serif; font-weight:700; color:var(--gold);
+    background:rgba(230,179,26,.1); border:1px solid rgba(230,179,26,.28);}
+  ol.install li b{color:var(--ink)}
+  .assure{background:linear-gradient(180deg,rgba(44,52,68,.7),rgba(36,43,56,.7));
+    border:1px solid rgba(230,179,26,.14); border-radius:16px; padding:26px;}
+  .assure h3{font-size:1.1rem; margin-bottom:1rem;}
+  .assure ul{list-style:none; margin:0; padding:0;}
+  .assure li{padding:.4rem 0 .4rem 1.8rem; position:relative; color:var(--ink-dim);}
+  .assure li::before{content:"𓂀"; font-family:"Noto Sans Egyptian Hieroglyphs",serif; position:absolute; left:0; color:var(--gold); font-size:.95rem;}
+  .assure .dl{margin-top:1.3rem}
+
+  /* history */
+  .history{max-width:70ch;}
+  .history p{color:var(--ink-dim); font-size:1.06rem; margin:0 0 1rem;}
+  .history .lead{color:var(--ink); font-size:1.14rem;}
+
+  footer{border-top:1px solid rgba(230,179,26,.14); padding:40px 0 56px; margin-top:20px;}
+  .foot-grid{display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; align-items:end;}
+  .foot-mark{font-family:"Cinzel",serif; font-weight:800; letter-spacing:.14em; color:var(--gold); font-size:1.3rem;}
+  footer p{margin:.3rem 0 0; color:var(--ink-dim); font-size:.86rem; max-width:44ch;}
+  footer a{color:var(--gold-soft); text-decoration:none; border-bottom:1px solid var(--line);}
+  .ver{font-family:"Cinzel",serif; letter-spacing:.1em; text-transform:uppercase; font-size:.74rem; color:var(--ink-dim);}
+
+  /* reveal on scroll */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .7s ease, transform .7s ease;}
+  .reveal.in{opacity:1; transform:none;}
+
+  /* hero intro animation */
+  .serpent{stroke-dasharray:var(--len); stroke-dashoffset:var(--len); animation:draw 2.6s ease .2s forwards;}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .stone{opacity:0; transform-box:fill-box; transform-origin:center; animation:pop .5s ease forwards; animation-delay:calc(1.1s + var(--i)*22ms);}
+  @keyframes pop{0%{opacity:0; transform:scale(.2)}60%{opacity:1; transform:scale(1.25)}100%{opacity:1; transform:scale(1)}}
+  .ra-core,.ra-halo{transform-box:fill-box; transform-origin:center;}
+  .ra-halo{animation:pulse 4.5s ease-in-out 2.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:.5; transform:scale(1)}50%{opacity:.9; transform:scale(1.08)}}
+  .piece{opacity:0; animation:pop .6s ease forwards; animation-delay:2.7s;}
+  .hero-copy>*{opacity:0; animation:rise .8s ease forwards;}
+  .hero-copy>*:nth-child(1){animation-delay:.15s}
+  .hero-copy>*:nth-child(2){animation-delay:.28s}
+  .hero-copy>*:nth-child(3){animation-delay:.40s}
+  .hero-copy>*:nth-child(4){animation-delay:.52s}
+  .hero-copy>*:nth-child(5){animation-delay:.64s}
+  @keyframes rise{from{opacity:0; transform:translateY(16px)}to{opacity:1; transform:none}}
+
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr; text-align:center}
+    .hero-copy{max-width:none; margin-inline:auto}
+    .eyebrow{justify-content:center}
+    .cta-row{justify-content:center}
+    .board-wrap{max-width:420px; order:-1}
+    .intro-cols,.install-grid{grid-template-columns:1fr}
+    .feat-grid,.steps{grid-template-columns:1fr}
+    .card.wide{grid-column:auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{scroll-behavior:auto}
+    .serpent{stroke-dasharray:none; stroke-dashoffset:0; animation:none}
+    .stone,.piece,.ra-halo,.hero-copy>*{animation:none; opacity:1; transform:none}
+    .reveal{opacity:1; transform:none; transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">Ancient Egypt · c. 3000 BCE</span>
+      <h1 class="wordmark">Mehen</h1>
+      <p class="subtitle">Game of the Snake</p>
+      <p class="lede">The coiled serpent board, reborn for Android. Hide marbles in your fist, make your rival guess, and march your <b>pharaohs</b> along the snake toward <b>Ra</b> at the center.</p>
+      <div class="cta-row">
+        <a class="btn" href="Mehen.apk" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
+          Download for Android
+        </a>
+        <span class="btn-meta"><b>Version 3.0</b> · Android 7.0+ · Free</span>
+        <a class="ghost" href="#play">How to play</a>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <svg class="board" viewBox="0 0 800 800" role="img" aria-label="The coiled Mehen serpent board of 72 squares spiralling into the sun-disc of Ra">
+        <defs>
+          <linearGradient id="snakeGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--snake-tail)"/>
+            <stop offset="0.55" stop-color="var(--snake-mid)"/>
+            <stop offset="1" stop-color="var(--snake-head)"/>
+          </linearGradient>
+          <radialGradient id="raGrad" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fff4c2"/>
+            <stop offset="0.5" stop-color="var(--gold)"/>
+            <stop offset="1" stop-color="var(--gold-deep)"/>
+          </radialGradient>
+          <radialGradient id="raHalo" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="rgba(230,179,26,.55)"/>
+            <stop offset="1" stop-color="rgba(230,179,26,0)"/>
+          </radialGradient>
+        </defs>
+
+        <path class="serpent-glow" d="M 750.00 400.00 L 749.53 390.24 L 748.78 380.50 L 747.76 370.80 L 746.48 361.14 L 744.92 351.52 L 743.10 341.97 L 741.01 332.48 L 738.67 323.06 L 736.06 313.71 L 733.19 304.46 L 730.08 295.29 L 726.70 286.23 L 723.08 277.27 L 719.22 268.43 L 715.11 259.70 L 710.77 251.11 L 706.19 242.64 L 701.38 234.32 L 696.34 226.14 L 691.09 218.11 L 685.61 210.24 L 679.93 202.53 L 674.04 195.00 L 667.94 187.63 L 661.65 180.45 L 655.16 173.46 L 648.49 166.65 L 641.64 160.04 L 634.61 153.63 L 627.42 147.43 L 620.06 141.44 L 612.54 135.66 L 604.87 130.09 L 597.06 124.75 L 589.11 119.64 L 581.02 114.75 L 572.82 110.10 L 564.49 105.68 L 556.05 101.50 L 547.51 97.57 L 538.87 93.87 L 530.13 90.43 L 521.32 87.23 L 512.42 84.28 L 503.46 81.59 L 494.43 79.15 L 485.35 76.96 L 476.22 75.03 L 467.05 73.36 L 457.84 71.95 L 448.61 70.80 L 439.36 69.90 L 430.10 69.27 L 420.83 68.89 L 411.57 68.78 L 402.31 68.92 L 393.07 69.33 L 383.86 69.99 L 374.68 70.90 L 365.53 72.07 L 356.44 73.50 L 347.39 75.18 L 338.40 77.10 L 329.48 79.28 L 320.64 81.70 L 311.87 84.37 L 303.19 87.27 L 294.61 90.42 L 286.12 93.80 L 277.75 97.41 L 269.48 101.25 L 261.33 105.32 L 253.31 109.60 L 245.42 114.11 L 237.67 118.83 L 230.06 123.76 L 222.59 128.90 L 215.29 134.23 L 208.14 139.77 L 201.16 145.49 L 194.34 151.40 L 187.70 157.50 L 181.24 163.77 L 174.97 170.21 L 168.88 176.81 L 162.99 183.58 L 157.30 190.50 L 151.80 197.58 L 146.52 204.79 L 141.44 212.14 L 136.57 219.63 L 131.92 227.24 L 127.49 234.96 L 123.28 242.80 L 119.30 250.75 L 115.55 258.80 L 112.02 266.93 L 108.73 275.16 L 105.67 283.47 L 102.85 291.85 L 100.26 300.29 L 97.92 308.80 L 95.82 317.36 L 93.96 325.96 L 92.34 334.60 L 90.97 343.28 L 89.84 351.98 L 88.95 360.71 L 88.31 369.44 L 87.92 378.18 L 87.77 386.91 L 87.86 395.64 L 88.20 404.35 L 88.78 413.04 L 89.60 421.71 L 90.67 430.33 L 91.97 438.91 L 93.51 447.45 L 95.29 455.93 L 97.30 464.34 L 99.54 472.69 L 102.01 480.96 L 104.71 489.15 L 107.64 497.26 L 110.78 505.27 L 114.15 513.18 L 117.73 520.98 L 121.53 528.67 L 125.53 536.25 L 129.74 543.70 L 134.15 551.02 L 138.76 558.21 L 143.56 565.26 L 148.56 572.17 L 153.74 578.92 L 159.09 585.52 L 164.63 591.96 L 170.34 598.24 L 176.21 604.35 L 182.25 610.28 L 188.44 616.04 L 194.78 621.61 L 201.27 627.00 L 207.91 632.20 L 214.67 637.21 L 221.57 642.02 L 228.59 646.63 L 235.73 651.04 L 242.98 655.24 L 250.33 659.23 L 257.79 663.01 L 265.34 666.58 L 272.98 669.93 L 280.70 673.06 L 288.50 675.97 L 296.37 678.66 L 304.30 681.13 L 312.28 683.37 L 320.32 685.38 L 328.40 687.16 L 336.52 688.72 L 344.67 690.05 L 352.84 691.15 L 361.04 692.02 L 369.24 692.65 L 377.45 693.06 L 385.66 693.24 L 393.86 693.19 L 402.04 692.91 L 410.21 692.40 L 418.35 691.66 L 426.46 690.70 L 434.52 689.51 L 442.54 688.10 L 450.51 686.47 L 458.42 684.62 L 466.27 682.55 L 474.05 680.26 L 481.75 677.76 L 489.37 675.05 L 496.90 672.12 L 504.34 669.00 L 511.68 665.67 L 518.91 662.14 L 526.04 658.41 L 533.05 654.49 L 539.94 650.39 L 546.70 646.09 L 553.33 641.61 L 559.83 636.96 L 566.19 632.13 L 572.40 627.13 L 578.46 621.96 L 584.37 616.64 L 590.12 611.15 L 595.71 605.52 L 601.13 599.73 L 606.39 593.81 L 611.46 587.75 L 616.36 581.55 L 621.09 575.23 L 625.62 568.79 L 629.97 562.23 L 634.13 555.55 L 638.09 548.78 L 641.86 541.90 L 645.44 534.93 L 648.81 527.87 L 651.98 520.73 L 654.94 513.51 L 657.70 506.22 L 660.25 498.86 L 662.59 491.44 L 664.72 483.97 L 666.63 476.46 L 668.34 468.90 L 669.83 461.30 L 671.10 453.68 L 672.16 446.03 L 673.01 438.37 L 673.64 430.69 L 674.05 423.01 L 674.25 415.33 L 674.23 407.66 L 674.00 400.00 L 673.56 392.36 L 672.90 384.74 L 672.03 377.16 L 670.95 369.61 L 669.66 362.10 L 668.16 354.64 L 666.46 347.24 L 664.56 339.89 L 662.45 332.61 L 660.14 325.41 L 657.63 318.27 L 654.93 311.22 L 652.04 304.26 L 648.95 297.39 L 645.68 290.61 L 642.23 283.94 L 638.59 277.38 L 634.78 270.93 L 630.79 264.59 L 626.64 258.38 L 622.31 252.30 L 617.83 246.34 L 613.18 240.52 L 608.38 234.84 L 603.43 229.30 L 598.33 223.91 L 593.09 218.68 L 587.71 213.59 L 582.20 208.67 L 576.56 203.91 L 570.80 199.31 L 564.92 194.89 L 558.92 190.63 L 552.82 186.55 L 546.61 182.64 L 540.30 178.92 L 533.90 175.38 L 527.41 172.02 L 520.84 168.85 L 514.19 165.87 L 507.47 163.08 L 500.68 160.49 L 493.83 158.08 L 486.93 155.88 L 479.97 153.87 L 472.97 152.05 L 465.94 150.44 L 458.87 149.02 L 451.77 147.81 L 444.65 146.79 L 437.51 145.98 L 430.36 145.37 L 423.21 144.96 L 416.06 144.74 L 408.91 144.73 L 401.78 144.92 L 394.66 145.31 L 387.57 145.89 L 380.51 146.68 L 373.48 147.66 L 366.49 148.83 L 359.54 150.20 L 352.64 151.76 L 345.80 153.51 L 339.02 155.44 L 332.31 157.57 L 325.67 159.87 L 319.10 162.36 L 312.62 165.03 L 306.22 167.87 L 299.91 170.89 L 293.69 174.08 L 287.58 177.44 L 281.57 180.96 L 275.67 184.65 L 269.88 188.49 L 264.21 192.49 L 258.66 196.64 L 253.24 200.94 L 247.95 205.38 L 242.79 209.96 L 237.76 214.68 L 232.88 219.53 L 228.14 224.51 L 223.55 229.61 L 219.11 234.83 L 214.83 240.16 L 210.70 245.61 L 206.73 251.16 L 202.92 256.82 L 199.28 262.56 L 195.81 268.41 L 192.50 274.33 L 189.37 280.34 L 186.41 286.43 L 183.62 292.59 L 181.01 298.81 L 178.58 305.10 L 176.33 311.44 L 174.26 317.84 L 172.38 324.28 L 170.68 330.76 L 169.16 337.28 L 167.83 343.83 L 166.68 350.41 L 165.72 357.00 L 164.94 363.61 L 164.35 370.23 L 163.95 376.86 L 163.73 383.48 L 163.70 390.10 L 163.85 396.70 L 164.19 403.29 L 164.71 409.86 L 165.42 416.40 L 166.30 422.91 L 167.37 429.39 L 168.61 435.82 L 170.04 442.21 L 171.64 448.54 L 173.41 454.82 L 175.35 461.04 L 177.47 467.19 L 179.75 473.27 L 182.20 479.27 L 184.81 485.20 L 187.59 491.04 L 190.52 496.79 L 193.60 502.46 L 196.84 508.02 L 200.23 513.48 L 203.77 518.84 L 207.45 524.09 L 211.27 529.23 L 215.22 534.25 L 219.31 539.15 L 223.53 543.93 L 227.87 548.58 L 232.33 553.10 L 236.92 557.49 L 241.61 561.74 L 246.42 565.85 L 251.34 569.82 L 256.35 573.64 L 261.46 577.32 L 266.67 580.85 L 271.96 584.22 L 277.34 587.44 L 282.80 590.51 L 288.33 593.41 L 293.94 596.16 L 299.61 598.74 L 305.34 601.16 L 311.13 603.42 L 316.97 605.51 L 322.86 607.43 L 328.79 609.18 L 334.76 610.76 L 340.76 612.18 L 346.79 613.42 L 352.84 614.49 L 358.91 615.40 L 365.00 616.13 L 371.09 616.68 L 377.18 617.07 L 383.28 617.29 L 389.37 617.33 L 395.45 617.21 L 401.51 616.91 L 407.56 616.45 L 413.58 615.81 L 419.57 615.01 L 425.52 614.05 L 431.44 612.92 L 437.32 611.62 L 443.14 610.17 L 448.92 608.55 L 454.63 606.78 L 460.29 604.85 L 465.88 602.77 L 471.40 600.53 L 476.85 598.14 L 482.23 595.61 L 487.52 592.93 L 492.72 590.10 L 497.84 587.14 L 502.86 584.04 L 507.78 580.81 L 512.61 577.44 L 517.33 573.95 L 521.95 570.33 L 526.45 566.59 L 530.84 562.73 L 535.11 558.76 L 539.27 554.67 L 543.30 550.48 L 547.21 546.18 L 550.98 541.78 L 554.63 537.29 L 558.15 532.70 L 561.52 528.02 L 564.77 523.26 L 567.87 518.42 L 570.83 513.50 L 573.64 508.50 L 576.31 503.44 L 578.84 498.32 L 581.21 493.13 L 583.44 487.89 L 585.51 482.59 L 587.43 477.25 L 589.20 471.87 L 590.81 466.45 L 592.27 460.99 L 593.58 455.51 L 594.72 450.00 L 595.71 444.47 L 596.55 438.92 L 597.23 433.36 L 597.75 427.79 L 598.11 422.22 L 598.32 416.65 L 598.37 411.09 L 598.26 405.54 L 598.00 400.00 L 597.59 394.48 L 597.02 388.99 L 596.30 383.52 L 595.42 378.08 L 594.40 372.68 L 593.23 367.32 L 591.91 362.00 L 590.44 356.73 L 588.83 351.52 L 587.08 346.35 L 585.19 341.25 L 583.16 336.22 L 580.99 331.25 L 578.69 326.35 L 576.25 321.53 L 573.69 316.78 L 571.00 312.12 L 568.18 307.54 L 565.24 303.05 L 562.18 298.66 L 559.01 294.35 L 555.72 290.15 L 552.32 286.05 L 548.82 282.05 L 545.21 278.16 L 541.50 274.37 L 537.69 270.70 L 533.78 267.15 L 529.79 263.71 L 525.71 260.39 L 521.54 257.19 L 517.29 254.11 L 512.97 251.17 L 508.57 248.34 L 504.11 245.65 L 499.58 243.09 L 494.99 240.66 L 490.33 238.37 L 485.63 236.21 L 480.87 234.18 L 476.07 232.30 L 471.23 230.55 L 466.35 228.94 L 461.43 227.47 L 456.49 226.15 L 451.52 224.96 L 446.52 223.92 L 441.51 223.02 L 436.49 222.26 L 431.45 221.64 L 426.41 221.17 L 421.36 220.83 L 416.32 220.64 L 411.29 220.59 L 406.26 220.69 L 401.25 220.92 L 396.26 221.29 L 391.28 221.80 L 386.34 222.45 L 381.42 223.24 L 376.54 224.16 L 371.69 225.22 L 366.89 226.41 L 362.12 227.73 L 357.41 229.18 L 352.75 230.77 L 348.14 232.47 L 343.59 234.31 L 339.11 236.26 L 334.69 238.34 L 330.33 240.54 L 326.05 242.85 L 321.84 245.28 L 317.71 247.82 L 313.67 250.47 L 309.70 253.22 L 305.82 256.08 L 302.04 259.05 L 298.34 262.11 L 294.74 265.27 L 291.23 268.52 L 287.82 271.86 L 284.52 275.29 L 281.32 278.81 L 278.22 282.40 L 275.24 286.08 L 272.36 289.82 L 269.60 293.64 L 266.94 297.53 L 264.41 301.49 L 261.99 305.50 L 259.69 309.58 L 257.51 313.70 L 255.45 317.88 L 253.51 322.11 L 251.69 326.38 L 250.00 330.69 L 248.44 335.04 L 247.00 339.42 L 245.68 343.83 L 244.49 348.27 L 243.43 352.73 L 242.50 357.21 L 241.70 361.70 L 241.02 366.21 L 240.47 370.72 L 240.05 375.24 L 239.75 379.76 L 239.59 384.27 L 239.55 388.78 L 239.63 393.28 L 239.85 397.76 L 240.18 402.23 L 240.65 406.68 L 241.23 411.10 L 241.94 415.50 L 242.77 419.86 L 243.72 424.19 L 244.79 428.49 L 245.97 432.74 L 247.28 436.95 L 248.69 441.11 L 250.22 445.22 L 251.87 449.28 L 253.62 453.28 L 255.48 457.22 L 257.44 461.10 L 259.51 464.92 L 261.68 468.66 L 263.95 472.34 L 266.31 475.94 L 268.78 479.47 L 271.33 482.92 L 273.97 486.29 L 276.71 489.58 L 279.52 492.78 L 282.42 495.89 L 285.40 498.92 L 288.46 501.85 L 291.59 504.69 L 294.79 507.44 L 298.06 510.09 L 301.40 512.63 L 304.79 515.08 L 308.25 517.43 L 311.77 519.68 L 315.34 521.81 L 318.96 523.85 L 322.62 525.78 L 326.33 527.59 L 330.09 529.30 L 333.88 530.90 L 337.70 532.39 L 341.56 533.77 L 345.44 535.04 L 349.35 536.19 L 353.28 537.23 L 357.23 538.16 L 361.20 538.98 L 365.17 539.68 L 369.16 540.27 L 373.15 540.74 L 377.15 541.10 L 381.14 541.35 L 385.13 541.49 L 389.11 541.51 L 393.08 541.42 L 397.04 541.22 L 400.98 540.91 L 404.91 540.49 L 408.81 539.96 L 412.68 539.33 L 416.52 538.58 L 420.34 537.73 L 424.12 536.78 L 427.86 535.72 L 431.56 534.56 L 435.22 533.30 L 438.83 531.94 L 442.40 530.48 L 445.91 528.93 L 449.37 527.28 L 452.77 525.55 L 456.12 523.72 L 459.40 521.80 L 462.63 519.79 L 465.78 517.70 L 468.87 515.53 L 471.89 513.28 L 474.83 510.94 L 477.70 508.54 L 480.50 506.06 L 483.22 503.50 L 485.86 500.88 L 488.41 498.19 L 490.89 495.44 L 493.28 492.63 L 495.58 489.76 L 497.80 486.83 L 499.93 483.85 L 501.96 480.82 L 503.91 477.73 L 505.76 474.61 L 507.52 471.44 L 509.19 468.23 L 510.76 464.98 L 512.24 461.70 L 513.62 458.39 L 514.90 455.05 L 516.08 451.68 L 517.17 448.29 L 518.15 444.88 L 519.04 441.45 L 519.83 438.01 L 520.52 434.56 L 521.11 431.10 L 521.60 427.63 L 522.00 424.16 L 522.29 420.68 L 522.49 417.21 L 522.58 413.75 L 522.58 410.29 L 522.48 406.85 L 522.29 403.42 L 522.00 400.00 L 521.61 396.60 L 521.14 393.23 L 520.56 389.88 L 519.90 386.55 L 519.14 383.26 L 518.29 379.99 L 517.36 376.76 L 516.33 373.57 L 515.22 370.42 L 514.03 367.30 L 512.75 364.23 L 511.39 361.21 L 509.94 358.24 L 508.42 355.31 L 506.82 352.44 L 505.15 349.62 L 503.40 346.86 L 501.58 344.16 L 499.69 341.51 L 497.73 338.93 L 495.71 336.41 L 493.62 333.96 L 491.47 331.57 L 489.26 329.26 L 486.99 327.01 L 484.66 324.83 L 482.29 322.73 L 479.86 320.70 L 477.38 318.74 L 474.85 316.87 L 472.28 315.07 L 469.67 313.34 L 467.02 311.70 L 464.33 310.14 L 461.61 308.66 L 458.86 307.26 L 456.07 305.94 L 453.26 304.71 L 450.42 303.56 L 447.56 302.49 L 444.68 301.51 L 441.78 300.61 L 438.87 299.80 L 435.94 299.07 L 433.00 298.43 L 430.06 297.87 L 427.11 297.40 L 424.16 297.01 L 421.20 296.70 L 418.25 296.49 L 415.31 296.35 L 412.37 296.30 L 409.43 296.33 L 406.52 296.44 L 403.61 296.64 L 400.72 296.92 L 397.85 297.28 L 395.00 297.71 L 392.17 298.23 L 389.37 298.82 L 386.59 299.50 L 383.84 300.24 L 381.13 301.06 L 378.44 301.96 L 375.80 302.93 L 373.19 303.97 L 370.62 305.08 L 368.09 306.25 L 365.60 307.50 L 363.16 308.81 L 360.76 310.18 L 358.41 311.62 L 356.11 313.11 L 353.86 314.67 L 351.67 316.28 L 349.53 317.95 L 347.44 319.68 L 345.41 321.45 L 343.44 323.28 L 341.53 325.16 L 339.67 327.08 L 337.88 329.05 L 336.16 331.06 L 334.49 333.11 L 332.89 335.20 L 331.36 337.32 L 329.89 339.48 L 328.49 341.68 L 327.16 343.90 L 325.89 346.16 L 324.70 348.44 L 323.57 350.75 L 322.52 353.07 L 321.53 355.42 L 320.61 357.79 L 319.77 360.17 L 318.99 362.57 L 318.29 364.98 L 317.66 367.40 L 317.10 369.83 L 316.61 372.26 L 316.19 374.70 L 315.84 377.13 L 315.56 379.57 L 315.36 382.01 L 315.22 384.44 L 315.15 386.86 L 315.15 389.28 L 315.22 391.69 L 315.36 394.08 L 315.57 396.46 L 315.84 398.82 L 316.18 401.17 L 316.58 403.50 L 317.05 405.80 L 317.58 408.08 L 318.17 410.34 L 318.82 412.57 L 319.54 414.77 L 320.31 416.94 L 321.15 419.08 L 322.04 421.18 L 322.98 423.25 L 323.98 425.29 L 325.03 427.29 L 326.14 429.24 L 327.29 431.16 L 328.50 433.04 L 329.75 434.87 L 331.05 436.66 L 332.40 438.40 L 333.78 440.10 L 335.21 441.75 L 336.68 443.35 L 338.19 444.91 L 339.74 446.41 L 341.32 447.86 L 342.93 449.26 L 344.58 450.61 L 346.26 451.90 L 347.96 453.14 L 349.70 454.32 L 351.46 455.45 L 353.24 456.52 L 355.04 457.54 L 356.87 458.50 L 358.71 459.41 L 360.57 460.25 L 362.45 461.04 L 364.33 461.78 L 366.23 462.45 L 368.14 463.07 L 370.06 463.63 L 371.98 464.13 L 373.91 464.57 L 375.84 464.96 L 377.77 465.29 L 379.71 465.56 L 381.63 465.78 L 383.56 465.94 L 385.48 466.04 L 387.39 466.09 L 389.30 466.08 L 391.19 466.02 L 393.07 465.90 L 394.94 465.73 L 396.80 465.51 L 398.63 465.24 L 400.45 464.91 L 402.25 464.54 L 404.03 464.11 L 405.79 463.64 L 407.53 463.12 L 409.24 462.55 L 410.92 461.93 L 412.58 461.27 L 414.21 460.57 L 415.81 459.82 L 417.37 459.03 L 418.91 458.20 L 420.42 457.34 L 421.89 456.43 L 423.32 455.48 L 424.72 454.50 L 426.09 453.49 L 427.41 452.44 L 428.70 451.36 L 429.95 450.25 L 431.16 449.11 L 432.33 447.94 L 433.46 446.74 L 434.55 445.52 L 435.60 444.27 L 436.60 443.00 L 437.56 441.72 L 438.48 440.41 L 439.35 439.08 L 440.18 437.73 L 440.97 436.37 L 441.71 435.00 L 442.40 433.61 L 443.05 432.21 L 443.66 430.80 L 444.22 429.38 L 444.74 427.96 L 445.21 426.53 L 445.64 425.09 L 446.02 423.65 L 446.36 422.21 L 446.65 420.77 L 446.90 419.33 L 447.11 417.89 L 447.27 416.46 L 447.39 415.03 L 447.46 413.61 L 447.50 412.20 L 447.49 410.79 L 447.44 409.39 L 447.35 408.01 L 447.22 406.64 L 447.06 405.28 L 446.85 403.93 L 446.60 402.61 L 446.32 401.29 L 446.00 400.00"/>
+        <path class="serpent" d="M 750.00 400.00 L 749.53 390.24 L 748.78 380.50 L 747.76 370.80 L 746.48 361.14 L 744.92 351.52 L 743.10 341.97 L 741.01 332.48 L 738.67 323.06 L 736.06 313.71 L 733.19 304.46 L 730.08 295.29 L 726.70 286.23 L 723.08 277.27 L 719.22 268.43 L 715.11 259.70 L 710.77 251.11 L 706.19 242.64 L 701.38 234.32 L 696.34 226.14 L 691.09 218.11 L 685.61 210.24 L 679.93 202.53 L 674.04 195.00 L 667.94 187.63 L 661.65 180.45 L 655.16 173.46 L 648.49 166.65 L 641.64 160.04 L 634.61 153.63 L 627.42 147.43 L 620.06 141.44 L 612.54 135.66 L 604.87 130.09 L 597.06 124.75 L 589.11 119.64 L 581.02 114.75 L 572.82 110.10 L 564.49 105.68 L 556.05 101.50 L 547.51 97.57 L 538.87 93.87 L 530.13 90.43 L 521.32 87.23 L 512.42 84.28 L 503.46 81.59 L 494.43 79.15 L 485.35 76.96 L 476.22 75.03 L 467.05 73.36 L 457.84 71.95 L 448.61 70.80 L 439.36 69.90 L 430.10 69.27 L 420.83 68.89 L 411.57 68.78 L 402.31 68.92 L 393.07 69.33 L 383.86 69.99 L 374.68 70.90 L 365.53 72.07 L 356.44 73.50 L 347.39 75.18 L 338.40 77.10 L 329.48 79.28 L 320.64 81.70 L 311.87 84.37 L 303.19 87.27 L 294.61 90.42 L 286.12 93.80 L 277.75 97.41 L 269.48 101.25 L 261.33 105.32 L 253.31 109.60 L 245.42 114.11 L 237.67 118.83 L 230.06 123.76 L 222.59 128.90 L 215.29 134.23 L 208.14 139.77 L 201.16 145.49 L 194.34 151.40 L 187.70 157.50 L 181.24 163.77 L 174.97 170.21 L 168.88 176.81 L 162.99 183.58 L 157.30 190.50 L 151.80 197.58 L 146.52 204.79 L 141.44 212.14 L 136.57 219.63 L 131.92 227.24 L 127.49 234.96 L 123.28 242.80 L 119.30 250.75 L 115.55 258.80 L 112.02 266.93 L 108.73 275.16 L 105.67 283.47 L 102.85 291.85 L 100.26 300.29 L 97.92 308.80 L 95.82 317.36 L 93.96 325.96 L 92.34 334.60 L 90.97 343.28 L 89.84 351.98 L 88.95 360.71 L 88.31 369.44 L 87.92 378.18 L 87.77 386.91 L 87.86 395.64 L 88.20 404.35 L 88.78 413.04 L 89.60 421.71 L 90.67 430.33 L 91.97 438.91 L 93.51 447.45 L 95.29 455.93 L 97.30 464.34 L 99.54 472.69 L 102.01 480.96 L 104.71 489.15 L 107.64 497.26 L 110.78 505.27 L 114.15 513.18 L 117.73 520.98 L 121.53 528.67 L 125.53 536.25 L 129.74 543.70 L 134.15 551.02 L 138.76 558.21 L 143.56 565.26 L 148.56 572.17 L 153.74 578.92 L 159.09 585.52 L 164.63 591.96 L 170.34 598.24 L 176.21 604.35 L 182.25 610.28 L 188.44 616.04 L 194.78 621.61 L 201.27 627.00 L 207.91 632.20 L 214.67 637.21 L 221.57 642.02 L 228.59 646.63 L 235.73 651.04 L 242.98 655.24 L 250.33 659.23 L 257.79 663.01 L 265.34 666.58 L 272.98 669.93 L 280.70 673.06 L 288.50 675.97 L 296.37 678.66 L 304.30 681.13 L 312.28 683.37 L 320.32 685.38 L 328.40 687.16 L 336.52 688.72 L 344.67 690.05 L 352.84 691.15 L 361.04 692.02 L 369.24 692.65 L 377.45 693.06 L 385.66 693.24 L 393.86 693.19 L 402.04 692.91 L 410.21 692.40 L 418.35 691.66 L 426.46 690.70 L 434.52 689.51 L 442.54 688.10 L 450.51 686.47 L 458.42 684.62 L 466.27 682.55 L 474.05 680.26 L 481.75 677.76 L 489.37 675.05 L 496.90 672.12 L 504.34 669.00 L 511.68 665.67 L 518.91 662.14 L 526.04 658.41 L 533.05 654.49 L 539.94 650.39 L 546.70 646.09 L 553.33 641.61 L 559.83 636.96 L 566.19 632.13 L 572.40 627.13 L 578.46 621.96 L 584.37 616.64 L 590.12 611.15 L 595.71 605.52 L 601.13 599.73 L 606.39 593.81 L 611.46 587.75 L 616.36 581.55 L 621.09 575.23 L 625.62 568.79 L 629.97 562.23 L 634.13 555.55 L 638.09 548.78 L 641.86 541.90 L 645.44 534.93 L 648.81 527.87 L 651.98 520.73 L 654.94 513.51 L 657.70 506.22 L 660.25 498.86 L 662.59 491.44 L 664.72 483.97 L 666.63 476.46 L 668.34 468.90 L 669.83 461.30 L 671.10 453.68 L 672.16 446.03 L 673.01 438.37 L 673.64 430.69 L 674.05 423.01 L 674.25 415.33 L 674.23 407.66 L 674.00 400.00 L 673.56 392.36 L 672.90 384.74 L 672.03 377.16 L 670.95 369.61 L 669.66 362.10 L 668.16 354.64 L 666.46 347.24 L 664.56 339.89 L 662.45 332.61 L 660.14 325.41 L 657.63 318.27 L 654.93 311.22 L 652.04 304.26 L 648.95 297.39 L 645.68 290.61 L 642.23 283.94 L 638.59 277.38 L 634.78 270.93 L 630.79 264.59 L 626.64 258.38 L 622.31 252.30 L 617.83 246.34 L 613.18 240.52 L 608.38 234.84 L 603.43 229.30 L 598.33 223.91 L 593.09 218.68 L 587.71 213.59 L 582.20 208.67 L 576.56 203.91 L 570.80 199.31 L 564.92 194.89 L 558.92 190.63 L 552.82 186.55 L 546.61 182.64 L 540.30 178.92 L 533.90 175.38 L 527.41 172.02 L 520.84 168.85 L 514.19 165.87 L 507.47 163.08 L 500.68 160.49 L 493.83 158.08 L 486.93 155.88 L 479.97 153.87 L 472.97 152.05 L 465.94 150.44 L 458.87 149.02 L 451.77 147.81 L 444.65 146.79 L 437.51 145.98 L 430.36 145.37 L 423.21 144.96 L 416.06 144.74 L 408.91 144.73 L 401.78 144.92 L 394.66 145.31 L 387.57 145.89 L 380.51 146.68 L 373.48 147.66 L 366.49 148.83 L 359.54 150.20 L 352.64 151.76 L 345.80 153.51 L 339.02 155.44 L 332.31 157.57 L 325.67 159.87 L 319.10 162.36 L 312.62 165.03 L 306.22 167.87 L 299.91 170.89 L 293.69 174.08 L 287.58 177.44 L 281.57 180.96 L 275.67 184.65 L 269.88 188.49 L 264.21 192.49 L 258.66 196.64 L 253.24 200.94 L 247.95 205.38 L 242.79 209.96 L 237.76 214.68 L 232.88 219.53 L 228.14 224.51 L 223.55 229.61 L 219.11 234.83 L 214.83 240.16 L 210.70 245.61 L 206.73 251.16 L 202.92 256.82 L 199.28 262.56 L 195.81 268.41 L 192.50 274.33 L 189.37 280.34 L 186.41 286.43 L 183.62 292.59 L 181.01 298.81 L 178.58 305.10 L 176.33 311.44 L 174.26 317.84 L 172.38 324.28 L 170.68 330.76 L 169.16 337.28 L 167.83 343.83 L 166.68 350.41 L 165.72 357.00 L 164.94 363.61 L 164.35 370.23 L 163.95 376.86 L 163.73 383.48 L 163.70 390.10 L 163.85 396.70 L 164.19 403.29 L 164.71 409.86 L 165.42 416.40 L 166.30 422.91 L 167.37 429.39 L 168.61 435.82 L 170.04 442.21 L 171.64 448.54 L 173.41 454.82 L 175.35 461.04 L 177.47 467.19 L 179.75 473.27 L 182.20 479.27 L 184.81 485.20 L 187.59 491.04 L 190.52 496.79 L 193.60 502.46 L 196.84 508.02 L 200.23 513.48 L 203.77 518.84 L 207.45 524.09 L 211.27 529.23 L 215.22 534.25 L 219.31 539.15 L 223.53 543.93 L 227.87 548.58 L 232.33 553.10 L 236.92 557.49 L 241.61 561.74 L 246.42 565.85 L 251.34 569.82 L 256.35 573.64 L 261.46 577.32 L 266.67 580.85 L 271.96 584.22 L 277.34 587.44 L 282.80 590.51 L 288.33 593.41 L 293.94 596.16 L 299.61 598.74 L 305.34 601.16 L 311.13 603.42 L 316.97 605.51 L 322.86 607.43 L 328.79 609.18 L 334.76 610.76 L 340.76 612.18 L 346.79 613.42 L 352.84 614.49 L 358.91 615.40 L 365.00 616.13 L 371.09 616.68 L 377.18 617.07 L 383.28 617.29 L 389.37 617.33 L 395.45 617.21 L 401.51 616.91 L 407.56 616.45 L 413.58 615.81 L 419.57 615.01 L 425.52 614.05 L 431.44 612.92 L 437.32 611.62 L 443.14 610.17 L 448.92 608.55 L 454.63 606.78 L 460.29 604.85 L 465.88 602.77 L 471.40 600.53 L 476.85 598.14 L 482.23 595.61 L 487.52 592.93 L 492.72 590.10 L 497.84 587.14 L 502.86 584.04 L 507.78 580.81 L 512.61 577.44 L 517.33 573.95 L 521.95 570.33 L 526.45 566.59 L 530.84 562.73 L 535.11 558.76 L 539.27 554.67 L 543.30 550.48 L 547.21 546.18 L 550.98 541.78 L 554.63 537.29 L 558.15 532.70 L 561.52 528.02 L 564.77 523.26 L 567.87 518.42 L 570.83 513.50 L 573.64 508.50 L 576.31 503.44 L 578.84 498.32 L 581.21 493.13 L 583.44 487.89 L 585.51 482.59 L 587.43 477.25 L 589.20 471.87 L 590.81 466.45 L 592.27 460.99 L 593.58 455.51 L 594.72 450.00 L 595.71 444.47 L 596.55 438.92 L 597.23 433.36 L 597.75 427.79 L 598.11 422.22 L 598.32 416.65 L 598.37 411.09 L 598.26 405.54 L 598.00 400.00 L 597.59 394.48 L 597.02 388.99 L 596.30 383.52 L 595.42 378.08 L 594.40 372.68 L 593.23 367.32 L 591.91 362.00 L 590.44 356.73 L 588.83 351.52 L 587.08 346.35 L 585.19 341.25 L 583.16 336.22 L 580.99 331.25 L 578.69 326.35 L 576.25 321.53 L 573.69 316.78 L 571.00 312.12 L 568.18 307.54 L 565.24 303.05 L 562.18 298.66 L 559.01 294.35 L 555.72 290.15 L 552.32 286.05 L 548.82 282.05 L 545.21 278.16 L 541.50 274.37 L 537.69 270.70 L 533.78 267.15 L 529.79 263.71 L 525.71 260.39 L 521.54 257.19 L 517.29 254.11 L 512.97 251.17 L 508.57 248.34 L 504.11 245.65 L 499.58 243.09 L 494.99 240.66 L 490.33 238.37 L 485.63 236.21 L 480.87 234.18 L 476.07 232.30 L 471.23 230.55 L 466.35 228.94 L 461.43 227.47 L 456.49 226.15 L 451.52 224.96 L 446.52 223.92 L 441.51 223.02 L 436.49 222.26 L 431.45 221.64 L 426.41 221.17 L 421.36 220.83 L 416.32 220.64 L 411.29 220.59 L 406.26 220.69 L 401.25 220.92 L 396.26 221.29 L 391.28 221.80 L 386.34 222.45 L 381.42 223.24 L 376.54 224.16 L 371.69 225.22 L 366.89 226.41 L 362.12 227.73 L 357.41 229.18 L 352.75 230.77 L 348.14 232.47 L 343.59 234.31 L 339.11 236.26 L 334.69 238.34 L 330.33 240.54 L 326.05 242.85 L 321.84 245.28 L 317.71 247.82 L 313.67 250.47 L 309.70 253.22 L 305.82 256.08 L 302.04 259.05 L 298.34 262.11 L 294.74 265.27 L 291.23 268.52 L 287.82 271.86 L 284.52 275.29 L 281.32 278.81 L 278.22 282.40 L 275.24 286.08 L 272.36 289.82 L 269.60 293.64 L 266.94 297.53 L 264.41 301.49 L 261.99 305.50 L 259.69 309.58 L 257.51 313.70 L 255.45 317.88 L 253.51 322.11 L 251.69 326.38 L 250.00 330.69 L 248.44 335.04 L 247.00 339.42 L 245.68 343.83 L 244.49 348.27 L 243.43 352.73 L 242.50 357.21 L 241.70 361.70 L 241.02 366.21 L 240.47 370.72 L 240.05 375.24 L 239.75 379.76 L 239.59 384.27 L 239.55 388.78 L 239.63 393.28 L 239.85 397.76 L 240.18 402.23 L 240.65 406.68 L 241.23 411.10 L 241.94 415.50 L 242.77 419.86 L 243.72 424.19 L 244.79 428.49 L 245.97 432.74 L 247.28 436.95 L 248.69 441.11 L 250.22 445.22 L 251.87 449.28 L 253.62 453.28 L 255.48 457.22 L 257.44 461.10 L 259.51 464.92 L 261.68 468.66 L 263.95 472.34 L 266.31 475.94 L 268.78 479.47 L 271.33 482.92 L 273.97 486.29 L 276.71 489.58 L 279.52 492.78 L 282.42 495.89 L 285.40 498.92 L 288.46 501.85 L 291.59 504.69 L 294.79 507.44 L 298.06 510.09 L 301.40 512.63 L 304.79 515.08 L 308.25 517.43 L 311.77 519.68 L 315.34 521.81 L 318.96 523.85 L 322.62 525.78 L 326.33 527.59 L 330.09 529.30 L 333.88 530.90 L 337.70 532.39 L 341.56 533.77 L 345.44 535.04 L 349.35 536.19 L 353.28 537.23 L 357.23 538.16 L 361.20 538.98 L 365.17 539.68 L 369.16 540.27 L 373.15 540.74 L 377.15 541.10 L 381.14 541.35 L 385.13 541.49 L 389.11 541.51 L 393.08 541.42 L 397.04 541.22 L 400.98 540.91 L 404.91 540.49 L 408.81 539.96 L 412.68 539.33 L 416.52 538.58 L 420.34 537.73 L 424.12 536.78 L 427.86 535.72 L 431.56 534.56 L 435.22 533.30 L 438.83 531.94 L 442.40 530.48 L 445.91 528.93 L 449.37 527.28 L 452.77 525.55 L 456.12 523.72 L 459.40 521.80 L 462.63 519.79 L 465.78 517.70 L 468.87 515.53 L 471.89 513.28 L 474.83 510.94 L 477.70 508.54 L 480.50 506.06 L 483.22 503.50 L 485.86 500.88 L 488.41 498.19 L 490.89 495.44 L 493.28 492.63 L 495.58 489.76 L 497.80 486.83 L 499.93 483.85 L 501.96 480.82 L 503.91 477.73 L 505.76 474.61 L 507.52 471.44 L 509.19 468.23 L 510.76 464.98 L 512.24 461.70 L 513.62 458.39 L 514.90 455.05 L 516.08 451.68 L 517.17 448.29 L 518.15 444.88 L 519.04 441.45 L 519.83 438.01 L 520.52 434.56 L 521.11 431.10 L 521.60 427.63 L 522.00 424.16 L 522.29 420.68 L 522.49 417.21 L 522.58 413.75 L 522.58 410.29 L 522.48 406.85 L 522.29 403.42 L 522.00 400.00 L 521.61 396.60 L 521.14 393.23 L 520.56 389.88 L 519.90 386.55 L 519.14 383.26 L 518.29 379.99 L 517.36 376.76 L 516.33 373.57 L 515.22 370.42 L 514.03 367.30 L 512.75 364.23 L 511.39 361.21 L 509.94 358.24 L 508.42 355.31 L 506.82 352.44 L 505.15 349.62 L 503.40 346.86 L 501.58 344.16 L 499.69 341.51 L 497.73 338.93 L 495.71 336.41 L 493.62 333.96 L 491.47 331.57 L 489.26 329.26 L 486.99 327.01 L 484.66 324.83 L 482.29 322.73 L 479.86 320.70 L 477.38 318.74 L 474.85 316.87 L 472.28 315.07 L 469.67 313.34 L 467.02 311.70 L 464.33 310.14 L 461.61 308.66 L 458.86 307.26 L 456.07 305.94 L 453.26 304.71 L 450.42 303.56 L 447.56 302.49 L 444.68 301.51 L 441.78 300.61 L 438.87 299.80 L 435.94 299.07 L 433.00 298.43 L 430.06 297.87 L 427.11 297.40 L 424.16 297.01 L 421.20 296.70 L 418.25 296.49 L 415.31 296.35 L 412.37 296.30 L 409.43 296.33 L 406.52 296.44 L 403.61 296.64 L 400.72 296.92 L 397.85 297.28 L 395.00 297.71 L 392.17 298.23 L 389.37 298.82 L 386.59 299.50 L 383.84 300.24 L 381.13 301.06 L 378.44 301.96 L 375.80 302.93 L 373.19 303.97 L 370.62 305.08 L 368.09 306.25 L 365.60 307.50 L 363.16 308.81 L 360.76 310.18 L 358.41 311.62 L 356.11 313.11 L 353.86 314.67 L 351.67 316.28 L 349.53 317.95 L 347.44 319.68 L 345.41 321.45 L 343.44 323.28 L 341.53 325.16 L 339.67 327.08 L 337.88 329.05 L 336.16 331.06 L 334.49 333.11 L 332.89 335.20 L 331.36 337.32 L 329.89 339.48 L 328.49 341.68 L 327.16 343.90 L 325.89 346.16 L 324.70 348.44 L 323.57 350.75 L 322.52 353.07 L 321.53 355.42 L 320.61 357.79 L 319.77 360.17 L 318.99 362.57 L 318.29 364.98 L 317.66 367.40 L 317.10 369.83 L 316.61 372.26 L 316.19 374.70 L 315.84 377.13 L 315.56 379.57 L 315.36 382.01 L 315.22 384.44 L 315.15 386.86 L 315.15 389.28 L 315.22 391.69 L 315.36 394.08 L 315.57 396.46 L 315.84 398.82 L 316.18 401.17 L 316.58 403.50 L 317.05 405.80 L 317.58 408.08 L 318.17 410.34 L 318.82 412.57 L 319.54 414.77 L 320.31 416.94 L 321.15 419.08 L 322.04 421.18 L 322.98 423.25 L 323.98 425.29 L 325.03 427.29 L 326.14 429.24 L 327.29 431.16 L 328.50 433.04 L 329.75 434.87 L 331.05 436.66 L 332.40 438.40 L 333.78 440.10 L 335.21 441.75 L 336.68 443.35 L 338.19 444.91 L 339.74 446.41 L 341.32 447.86 L 342.93 449.26 L 344.58 450.61 L 346.26 451.90 L 347.96 453.14 L 349.70 454.32 L 351.46 455.45 L 353.24 456.52 L 355.04 457.54 L 356.87 458.50 L 358.71 459.41 L 360.57 460.25 L 362.45 461.04 L 364.33 461.78 L 366.23 462.45 L 368.14 463.07 L 370.06 463.63 L 371.98 464.13 L 373.91 464.57 L 375.84 464.96 L 377.77 465.29 L 379.71 465.56 L 381.63 465.78 L 383.56 465.94 L 385.48 466.04 L 387.39 466.09 L 389.30 466.08 L 391.19 466.02 L 393.07 465.90 L 394.94 465.73 L 396.80 465.51 L 398.63 465.24 L 400.45 464.91 L 402.25 464.54 L 404.03 464.11 L 405.79 463.64 L 407.53 463.12 L 409.24 462.55 L 410.92 461.93 L 412.58 461.27 L 414.21 460.57 L 415.81 459.82 L 417.37 459.03 L 418.91 458.20 L 420.42 457.34 L 421.89 456.43 L 423.32 455.48 L 424.72 454.50 L 426.09 453.49 L 427.41 452.44 L 428.70 451.36 L 429.95 450.25 L 431.16 449.11 L 432.33 447.94 L 433.46 446.74 L 434.55 445.52 L 435.60 444.27 L 436.60 443.00 L 437.56 441.72 L 438.48 440.41 L 439.35 439.08 L 440.18 437.73 L 440.97 436.37 L 441.71 435.00 L 442.40 433.61 L 443.05 432.21 L 443.66 430.80 L 444.22 429.38 L 444.74 427.96 L 445.21 426.53 L 445.64 425.09 L 446.02 423.65 L 446.36 422.21 L 446.65 420.77 L 446.90 419.33 L 447.11 417.89 L 447.27 416.46 L 447.39 415.03 L 447.46 413.61 L 447.50 412.20 L 447.49 410.79 L 447.44 409.39 L 447.35 408.01 L 447.22 406.64 L 447.06 405.28 L 446.85 403.93 L 446.60 402.61 L 446.32 401.29 L 446.00 400.00"/>
+
+    <circle class="stone" cx="750.0" cy="400.0" r="7.5" style="--i:0"/>
+    <circle class="stone" cx="724.3" cy="280.2" r="7.5" style="--i:1"/>
+    <circle class="stone" cx="659.4" cy="178.0" r="7.5" style="--i:2"/>
+    <circle class="stone" cx="564.3" cy="105.6" r="7.5" style="--i:3"/>
+    <circle class="stone" cx="451.3" cy="71.1" r="7.5" style="--i:4"/>
+    <circle class="stone" cx="335.0" cy="77.9" r="7.5" style="--i:5"/>
+    <circle class="stone" cx="229.6" cy="124.0" r="7.5" style="--i:6"/>
+    <circle class="stone" cx="147.9" cy="202.8" r="7.5" style="--i:7"/>
+    <circle class="stone" cx="99.3" cy="303.8" r="7.5" style="--i:8"/>
+    <circle class="stone" cx="88.8" cy="413.8" r="7.5" style="--i:9"/>
+    <circle class="stone" cx="116.9" cy="519.1" r="7.5" style="--i:10"/>
+    <circle class="stone" cx="178.8" cy="607.0" r="7.5" style="--i:11"/>
+    <circle class="stone" cx="266.2" cy="667.0" r="7.5" style="--i:12"/>
+    <circle class="stone" cx="367.5" cy="692.5" r="7.5" style="--i:13"/>
+    <circle class="stone" cx="469.9" cy="681.5" r="7.5" style="--i:14"/>
+    <circle class="stone" cx="560.7" cy="636.3" r="7.5" style="--i:15"/>
+    <circle class="stone" cx="629.2" cy="563.4" r="7.5" style="--i:16"/>
+    <circle class="stone" cx="667.5" cy="472.7" r="7.5" style="--i:17"/>
+    <circle class="stone" cx="671.9" cy="375.9" r="7.5" style="--i:18"/>
+    <circle class="stone" cx="642.8" cy="285.0" r="7.5" style="--i:19"/>
+    <circle class="stone" cx="584.9" cy="211.0" r="7.5" style="--i:20"/>
+    <circle class="stone" cx="506.1" cy="162.6" r="7.5" style="--i:21"/>
+    <circle class="stone" cx="417.0" cy="144.8" r="7.5" style="--i:22"/>
+    <circle class="stone" cx="328.7" cy="158.8" r="7.5" style="--i:23"/>
+    <circle class="stone" cx="252.0" cy="201.9" r="7.5" style="--i:24"/>
+    <circle class="stone" cx="196.1" cy="267.8" r="7.5" style="--i:25"/>
+    <circle class="stone" cx="167.1" cy="347.6" r="7.5" style="--i:26"/>
+    <circle class="stone" cx="167.7" cy="431.0" r="7.5" style="--i:27"/>
+    <circle class="stone" cx="196.6" cy="507.6" r="7.5" style="--i:28"/>
+    <circle class="stone" cx="249.4" cy="568.3" r="7.5" style="--i:29"/>
+    <circle class="stone" cx="318.6" cy="606.1" r="7.5" style="--i:30"/>
+    <circle class="stone" cx="395.2" cy="617.2" r="7.5" style="--i:31"/>
+    <circle class="stone" cx="469.4" cy="601.4" r="7.5" style="--i:32"/>
+    <circle class="stone" cx="532.2" cy="561.5" r="7.5" style="--i:33"/>
+    <circle class="stone" cx="576.3" cy="503.5" r="7.5" style="--i:34"/>
+    <circle class="stone" cx="597.0" cy="435.2" r="7.5" style="--i:35"/>
+    <circle class="stone" cx="592.8" cy="365.5" r="7.5" style="--i:36"/>
+    <circle class="stone" cx="565.2" cy="303.0" r="7.5" style="--i:37"/>
+    <circle class="stone" cx="518.6" cy="255.1" r="7.5" style="--i:38"/>
+    <circle class="stone" cx="459.6" cy="227.0" r="7.5" style="--i:39"/>
+    <circle class="stone" cx="396.0" cy="221.3" r="7.5" style="--i:40"/>
+    <circle class="stone" cx="335.9" cy="237.7" r="7.5" style="--i:41"/>
+    <circle class="stone" cx="286.5" cy="273.2" r="7.5" style="--i:42"/>
+    <circle class="stone" cx="253.4" cy="322.4" r="7.5" style="--i:43"/>
+    <circle class="stone" cx="239.8" cy="378.6" r="7.5" style="--i:44"/>
+    <circle class="stone" cx="246.5" cy="434.5" r="7.5" style="--i:45"/>
+    <circle class="stone" cx="271.6" cy="483.3" r="7.5" style="--i:46"/>
+    <circle class="stone" cx="311.0" cy="519.2" r="7.5" style="--i:47"/>
+    <circle class="stone" cx="359.0" cy="538.5" r="7.5" style="--i:48"/>
+    <circle class="stone" cx="409.3" cy="539.9" r="7.5" style="--i:49"/>
+    <circle class="stone" cx="455.5" cy="524.1" r="7.5" style="--i:50"/>
+    <circle class="stone" cx="492.0" cy="494.1" r="7.5" style="--i:51"/>
+    <circle class="stone" cx="515.1" cy="454.5" r="7.5" style="--i:52"/>
+    <circle class="stone" cx="522.6" cy="410.9" r="7.5" style="--i:53"/>
+    <circle class="stone" cx="514.6" cy="368.8" r="7.5" style="--i:54"/>
+    <circle class="stone" cx="493.2" cy="333.5" r="7.5" style="--i:55"/>
+    <circle class="stone" cx="462.0" cy="308.9" r="7.5" style="--i:56"/>
+    <circle class="stone" cx="425.5" cy="297.2" r="7.5" style="--i:57"/>
+    <circle class="stone" cx="388.8" cy="299.0" r="7.5" style="--i:58"/>
+    <circle class="stone" cx="356.4" cy="312.9" r="7.5" style="--i:59"/>
+    <circle class="stone" cx="332.0" cy="336.4" r="7.5" style="--i:60"/>
+    <circle class="stone" cx="318.1" cy="365.6" r="7.5" style="--i:61"/>
+    <circle class="stone" cx="315.5" cy="396.3" r="7.5" style="--i:62"/>
+    <circle class="stone" cx="323.6" cy="424.5" r="7.5" style="--i:63"/>
+    <circle class="stone" cx="340.2" cy="446.8" r="7.5" style="--i:64"/>
+    <circle class="stone" cx="362.3" cy="461.0" r="7.5" style="--i:65"/>
+    <circle class="stone" cx="386.7" cy="466.1" r="7.5" style="--i:66"/>
+    <circle class="stone" cx="409.7" cy="462.4" r="7.5" style="--i:67"/>
+    <circle class="stone" cx="428.7" cy="451.4" r="7.5" style="--i:68"/>
+    <circle class="stone" cx="441.5" cy="435.5" r="7.5" style="--i:69"/>
+    <circle class="stone" cx="447.2" cy="417.4" r="7.5" style="--i:70"/>
+    <circle class="stone head-stone" cx="446.0" cy="400.0" r="7.5" style="--i:71"/>
+
+        <circle class="ra-halo" cx="400" cy="400" r="120"/>
+        <circle class="ra-core" cx="400" cy="400" r="34"/>
+
+        <circle class="piece red"  cx="88.8" cy="413.8" r="12"/>
+        <circle class="piece blue" cx="249.4" cy="568.3" r="12"/>
+      </svg>
+      <p class="board-cap"><span class="glyph">&#x13191;</span> 72 squares from the serpent's tail to the sanctuary of Ra <span class="glyph">&#x13080;</span></p>
+    </div>
+  </div>
+</header>
+
+<div class="rule"><span class="glyph">&#x13191;</span></div>
+
+<section id="about">
+  <div class="wrap reveal">
+    <span class="eyebrow solo">The oldest game we forgot how to play</span>
+    <div class="sec-head"><h2>A serpent older than the pyramids</h2></div>
+    <div class="intro-cols">
+      <div>
+        <p>Mehen was played in Egypt more than five thousand years ago, its board a stone serpent coiled tail-to-head. Then it vanished. For most of a century, museums could only guess at its rules by borrowing them from a much later African game.</p>
+        <p>In 2024, archaeologist James F. R. Masters proposed a different reconstruction: no dice at all, but a game of nerve and bluff, where marbles are hidden in a closed fist and a rival must guess how many. This app plays Mehen the way Masters imagined it — the first time in millennia the snake has moved again.</p>
+      </div>
+      <p class="pull"><span class="glyph">&#x13080;</span> No dice. No luck to hide behind. Only what you dare to conceal — and what your opponent dares to guess.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap reveal">
+    <span class="eyebrow solo">Inside the app</span>
+    <div class="sec-head"><h2>Everything the snake remembers</h2></div>
+    <div class="feat-grid">
+      <div class="card"><span class="ico glyph">&#x13191;</span><h3>The 72-square serpent</h3><p>The full coiled board, drawn faithfully — four tightening loops from the tail to Ra's disc at the heart.</p></div>
+      <div class="card"><span class="ico">&#x1F422;&#x1F98A;&#x1F985;</span><h3>Three cunning minds</h3><p>Face an AI that plays gently, slyly, or ruthlessly. Easy, medium and hard opponents each bluff and guess differently.</p></div>
+      <div class="card"><span class="ico">&#x1F981;</span><h3>The lion's ambush</h3><p>Win a guess and you may loose a lion instead of moving — pinning a rival's pharaoh until they can fight it free.</p></div>
+      <div class="card"><span class="ico">&#x270A;</span><h3>The art of the bluff</h3><p>Conceal one to five marbles and read your opponent. Every turn is a small duel of misdirection.</p></div>
+      <div class="card"><span class="ico">&#x1F464;</span><h3>Pharaohs in play</h3><p>Command one to three pieces. Land on a rival to swap places; land on your own to leap ahead.</p></div>
+      <div class="card"><span class="ico">&#x1F4F5;</span><h3>Plays anywhere</h3><p>Entirely offline. No accounts, no ads, no network — phone or tablet, on the bus or in a tomb.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="rule"><span class="glyph">&#x13080;</span></div>
+
+<section id="play">
+  <div class="wrap reveal">
+    <span class="eyebrow solo">One turn, start to finish</span>
+    <div class="sec-head"><h2>How to play</h2><p>A single turn is three small moments. The whole game is these, again and again, up the serpent's back.</p></div>
+    <div class="steps">
+      <div class="step"><div class="num">01</div><h3>Conceal</h3><p>The hider secretly closes one to five marbles inside a fist.</p></div>
+      <div class="step"><div class="num">02</div><h3>Guess</h3><p>The rival names a number — trying to read the bluff.</p></div>
+      <div class="step"><div class="num">03</div><h3>March or pounce</h3><p>Guess wrong and the hider advances a pharaoh. Guess right and the rival moves instead — or looses a lion.</p></div>
+    </div>
+    <p class="win-note"><b>To win:</b> lead every one of your pharaohs up the coils and into Ra at the center. No exact count is needed — any move that would carry a piece past the end sends it home to the sun.</p>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap reveal">
+    <span class="eyebrow solo">Getting it onto your phone</span>
+    <div class="sec-head"><h2>Install in four steps</h2><p>Mehen is delivered as an Android app file (APK) you install directly — the same package, without a store in between.</p></div>
+    <div class="install-grid">
+      <ol class="install">
+        <li>Download <b>Mehen.apk</b> to your Android phone or tablet using the button above.</li>
+        <li>Open the downloaded file. Android may ask permission to <b>install from this source</b> — allow it for your browser or files app.</li>
+        <li>Tap <b>Install</b>, then <b>Open</b> when it finishes.</li>
+        <li>Begin the journey — the title screen will offer a new game or a saved one.</li>
+      </ol>
+      <div class="assure">
+        <h3>What to expect</h3>
+        <ul>
+          <li>Runs on Android 7.0 and newer</li>
+          <li>No account, no sign-in, no ads</li>
+          <li>Works fully offline</li>
+          <li>Sound is optional — the game speaks in gentle tones either way</li>
+        </ul>
+        <a class="btn dl" href="Mehen.apk" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
+          Download Mehen.apk
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="rule"><span class="glyph">&#x13191;</span></div>
+
+<section id="history">
+  <div class="wrap reveal history">
+    <span class="eyebrow solo">A note from the record</span>
+    <div class="sec-head"><h2>Lost, then listened to again</h2></div>
+    <p class="lead">The Ashmolean Museum in Oxford keeps a Mehen board reckoned at more than 5,300 years old.</p>
+    <p>For nearly a century its rules were reconstructed from a much later Sudanese game called Hyena. In 2024, James F. R. Masters overturned that reading — arguing the game used no dice, and that its lion pieces were markers rather than players. The marble-guessing turn you play here is his proposed reconstruction. The true, original rules remain lost to history; this is our best and most careful guess at how the snake once moved.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>
+      <div class="foot-mark">MEHEN <span class="glyph" style="font-weight:400">&#x13191;</span></div>
+      <p>Game design and rules reconstruction by James F. R. Masters (2024). Hieroglyphs set in Noto Sans Egyptian Hieroglyphs, under the SIL Open Font License.</p>
+    </div>
+    <div style="text-align:right">
+      <div class="ver">Version 3.0 · Android 7.0+</div>
+      <p style="margin-left:auto"><a href="Mehen.apk" download>Download the APK</a></p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Serpent draw length (progressive enhancement)
+  (function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var s = document.querySelector('.serpent');
+    if(s && !reduce){
+      try{ var len = s.getTotalLength(); s.style.setProperty('--len', len); }
+      catch(e){ s.style.strokeDasharray='none'; s.style.strokeDashoffset='0'; }
+    }
+    // Scroll reveal
+    var els = document.querySelectorAll('.reveal');
+    if(reduce || !('IntersectionObserver' in window)){ els.forEach(function(e){e.classList.add('in');}); return; }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, {threshold:.14});
+    els.forEach(function(e){ io.observe(e); });
+  })();
+</script>
+</body>
+</html>
