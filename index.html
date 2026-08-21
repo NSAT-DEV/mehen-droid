@@ -155,6 +155,18 @@
   .assure li::before{content:"𓂀"; font-family:"Noto Sans Egyptian Hieroglyphs",serif; position:absolute; left:0; color:var(--gold); font-size:.95rem;}
   .assure .dl{margin-top:1.3rem}
 
+  /* dynamic description for Mehen.apk */
+  .apk-desc{margin-top:1.3rem; padding:18px 20px; border-radius:14px;
+    background:radial-gradient(120% 140% at 0% 0%, rgba(230,179,26,.12), transparent 60%);
+    border:1px solid rgba(230,179,26,.22);}
+  .apk-desc-label{font-family:"Cinzel",serif; font-weight:600; letter-spacing:.2em;
+    text-transform:uppercase; font-size:.7rem; color:var(--gold);
+    margin:0 0 .55rem; display:flex; align-items:center; gap:.5em;}
+  .apk-desc-label .glyph{font-size:.95rem}
+  .apk-desc-body{margin:0; color:var(--ink-dim); font-size:.98rem; line-height:1.6;
+    white-space:pre-wrap;}
+  .apk-desc-body:empty{display:none}
+
   /* history */
   .history{max-width:70ch;}
   .history p{color:var(--ink-dim); font-size:1.06rem; margin:0 0 1rem;}
@@ -400,6 +412,12 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download Mehen.apk
         </a>
+        <!-- Description for Mehen.apk. Text is loaded at runtime from the companion
+             file named in the script below; edit that file to change what shows here. -->
+        <div class="apk-desc" id="apkDesc" hidden>
+          <p class="apk-desc-label"><span class="glyph">&#x13080;</span> About this download</p>
+          <p class="apk-desc-body" id="apkDescBody"></p>
+        </div>
       </div>
     </div>
   </div>
@@ -445,6 +463,37 @@
       entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
     }, {threshold:.14});
     els.forEach(function(e){ io.observe(e); });
+  })();
+
+  // Show the current description for Mehen.apk.
+  // The text lives in the small companion file named below — edit that file
+  // whenever you want to change what appears under the download button.
+  (function(){
+    var DESCRIPTION_FILE = 'Mehen-description.txt'; // <-- the file you edit to update the text
+
+    var box  = document.getElementById('apkDesc');
+    var body = document.getElementById('apkDescBody');
+    if(!box || !body) return;
+
+    // The timestamp + no-store defeat browser/CDN caching, so a freshly edited
+    // description shows up on the next page load rather than a stale copy.
+    var url = DESCRIPTION_FILE + '?t=' + Date.now();
+
+    fetch(url, { cache: 'no-store' })
+      .then(function(res){
+        if(!res.ok){ throw new Error('Description not available (' + res.status + ')'); }
+        return res.text();
+      })
+      .then(function(text){
+        text = text.trim();
+        if(!text){ return; }          // nothing to show — leave the block hidden
+        body.textContent = text;      // textContent keeps it safe from HTML injection
+        box.hidden = false;           // reveal only once there is real content
+      })
+      .catch(function(){
+        // No description file (or it failed to load) — keep the block hidden
+        // so the page stays clean.
+      });
   })();
 </script>
 </body>
