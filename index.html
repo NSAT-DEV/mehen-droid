@@ -156,17 +156,8 @@
   .assure li::before{content:"𓂀"; font-family:"Noto Sans Egyptian Hieroglyphs",serif; position:absolute; left:0; color:var(--gold); font-size:.95rem;}
   .assure .dl{margin-top:1.3rem}
 
-  /* dynamic description for Mehen.apk */
-  .apk-desc{margin-top:1.3rem; padding:18px 20px; border-radius:14px;
-    background:radial-gradient(120% 140% at 0% 0%, rgba(230,179,26,.12), transparent 60%);
-    border:1px solid rgba(230,179,26,.22);}
-  .apk-desc-label{font-family:"Cinzel",serif; font-weight:600; letter-spacing:.2em;
-    text-transform:uppercase; font-size:.7rem; color:var(--gold);
-    margin:0 0 .55rem; display:flex; align-items:center; gap:.5em;}
-  .apk-desc-label .glyph{font-size:.95rem}
-  .apk-desc-body{margin:0; color:var(--ink-dim); font-size:.98rem; line-height:1.6;
-    white-space:pre-wrap;}
-  .apk-desc-body:empty{display:none}
+  /* dynamic description for Mehen.apk (commit message from GitHub) */
+  #apkDesc{white-space:pre-wrap;}
 
   /* history */
   .history{max-width:70ch;}
@@ -234,7 +225,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download for Android
         </a>
-        <span class="btn-meta"><b>Version 3.0</b> · Android 7.0+ · Free</span>
+        <span class="btn-meta" id="apkDesc"></span>
         <a class="ghost" href="#play">How to play</a>
       </div>
     </div>
@@ -414,12 +405,6 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download Mehen.apk
         </a>
-        <!-- Description for Mehen.apk. Text is loaded at runtime from GitHub
-             (see the script near the bottom of this file). -->
-        <div class="apk-desc" id="apkDesc" hidden>
-          <p class="apk-desc-label"><span class="glyph">&#x13080;</span> About this download</p>
-          <p class="apk-desc-body" id="apkDescBody"></p>
-        </div>
       </div>
     </div>
   </div>
@@ -470,32 +455,16 @@
   // Show the current description for Mehen.apk, pulled live from GitHub.
   // The "description" is the commit message you type when you upload / update the
   // file on GitHub (e.g. "Mehen version 1.5   8-21-2026"). Upload a new copy with
-  // a new message and this text updates on the next page load.
+  // a new message and this line updates on the next page load.
   (function(){
     // ---- What to read ----
     var OWNER     = 'nsat-dev';      // GitHub user / org
     var REPO      = 'mehen-droid';   // repository name
     var FILE_PATH = 'Mehen.apk';     // path to the file inside the repo
-                                     //   (use 'docs/Mehen.apk' if your Pages site
-                                     //    is served from a /docs folder)
-    var BRANCH    = '';              // '' = the repo's default branch
-                                     //   (set e.g. 'gh-pages' if Pages uses that branch)
+    var BRANCH    = '';              // '' = the repo's default branch (main)
 
-    var box  = document.getElementById('apkDesc');
-    var body = document.getElementById('apkDescBody');
-    if(!box || !body) return;
-
-    // Fall back to auto-detecting owner/repo from a "<name>.github.io" URL
-    // if the values above are ever left blank.
-    if(!OWNER || !REPO){
-      var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
-      if(m){
-        OWNER = OWNER || m[1];
-        var seg = location.pathname.split('/').filter(Boolean);
-        REPO = REPO || (seg.length ? seg[0] : (m[1] + '.github.io'));
-      }
-    }
-    if(!OWNER || !REPO || !FILE_PATH) return;
+    var el = document.getElementById('apkDesc');
+    if(!el || !OWNER || !REPO || !FILE_PATH) return;
 
     // The newest commit that changed the file — its message is the description.
     var url = 'https://api.github.com/repos/' + OWNER + '/' + REPO +
@@ -508,12 +477,10 @@
       .then(function(list){
         var msg = Array.isArray(list) && list[0] && list[0].commit && list[0].commit.message;
         msg = (msg || '').trim();
-        if(!msg) return;              // nothing to show — leave the block hidden
-        body.textContent = msg;       // textContent keeps it safe from HTML injection
-        box.hidden = false;           // reveal only once there is real content
+        if(msg){ el.textContent = msg; }   // textContent keeps it safe from HTML injection
       })
       .catch(function(){
-        // Couldn't reach GitHub — keep the block hidden so the page stays clean.
+        // Couldn't reach GitHub — leave the line empty.
       });
   })();
 </script>
