@@ -51,6 +51,7 @@
   .wordmark{
     font-family:"Cinzel",serif; font-weight:800;
     font-size:clamp(3.6rem,11vw,7rem); letter-spacing:.06em;
+    width:max-content; /* size to the word so the gradient covers every letter */
     margin:.18em 0 .04em; line-height:.92;
     background:linear-gradient(180deg,#fbe9a8, var(--gold) 55%, var(--gold-deep));
     -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -203,6 +204,7 @@
   @media (max-width:860px){
     .hero-grid{grid-template-columns:1fr; text-align:center}
     .hero-copy{max-width:none; margin-inline:auto}
+    .wordmark{margin-inline:auto}
     .eyebrow{justify-content:center}
     .cta-row{justify-content:center}
     .board-wrap{max-width:420px; order:-1}
@@ -412,8 +414,8 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download Mehen.apk
         </a>
-        <!-- Description for Mehen.apk. Text is loaded at runtime from the companion
-             file named in the script below; edit that file to change what shows here. -->
+        <!-- Description for Mehen.apk. Text is loaded at runtime from GitHub
+             (see the script near the bottom of this file). -->
         <div class="apk-desc" id="apkDesc" hidden>
           <p class="apk-desc-label"><span class="glyph">&#x13080;</span> About this download</p>
           <p class="apk-desc-body" id="apkDescBody"></p>
@@ -465,35 +467,66 @@
     els.forEach(function(e){ io.observe(e); });
   })();
 
-  // Show the current description for Mehen.apk.
-  // The text lives in the small companion file named below — edit that file
-  // whenever you want to change what appears under the download button.
+  // Show the current description for Mehen.apk, pulled live from GitHub.
+  // By default this reads the newest GitHub *Release* for the repository this
+  // page is served from (its notes, or its title if the notes are empty).
+  // To change what appears under the download button, edit that release on GitHub.
   (function(){
-    var DESCRIPTION_FILE = 'Mehen-description.txt'; // <-- the file you edit to update the text
+    // ---- Where should the description come from? ----
+    // Leave OWNER/REPO blank to auto-detect from a "<name>.github.io" address.
+    // On a custom domain, fill them in, e.g. OWNER = 'janedoe', REPO = 'mehen'.
+    var OWNER  = '';
+    var REPO   = '';
+    var SOURCE = 'release';   // 'release' = newest release notes/title, 'repo' = repository "About" text
 
     var box  = document.getElementById('apkDesc');
     var body = document.getElementById('apkDescBody');
     if(!box || !body) return;
 
-    // The timestamp + no-store defeat browser/CDN caching, so a freshly edited
-    // description shows up on the next page load rather than a stale copy.
-    var url = DESCRIPTION_FILE + '?t=' + Date.now();
+    // Auto-detect owner/repo from a github.io URL when not set above.
+    if(!OWNER || !REPO){
+      var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+      if(m){
+        OWNER = OWNER || m[1];
+        var seg = location.pathname.split('/').filter(Boolean);
+        // Project page -> first path segment is the repo; user/org root page -> "<name>.github.io"
+        REPO = REPO || (seg.length ? seg[0] : (m[1] + '.github.io'));
+      }
+    }
+    if(!OWNER || !REPO) return;   // can't tell which repo — leave the block hidden
 
-    fetch(url, { cache: 'no-store' })
-      .then(function(res){
-        if(!res.ok){ throw new Error('Description not available (' + res.status + ')'); }
-        return res.text();
-      })
-      .then(function(text){
-        text = text.trim();
-        if(!text){ return; }          // nothing to show — leave the block hidden
-        body.textContent = text;      // textContent keeps it safe from HTML injection
-        box.hidden = false;           // reveal only once there is real content
-      })
-      .catch(function(){
-        // No description file (or it failed to load) — keep the block hidden
-        // so the page stays clean.
-      });
+    var api = 'https://api.github.com/repos/' + OWNER + '/' + REPO;
+
+    function show(text){
+      text = (text || '').trim();
+      if(!text) return;             // nothing to show — leave the block hidden
+      body.textContent = text;      // textContent keeps it safe from HTML injection
+      box.hidden = false;           // reveal only once there is real content
+    }
+
+    // no-store avoids showing a stale copy after you edit the release on GitHub.
+    function getJSON(url){
+      return fetch(url, { cache:'no-store', headers:{ 'Accept':'application/vnd.github+json' } })
+        .then(function(res){ if(!res.ok){ throw new Error(res.status); } return res.json(); });
+    }
+
+    function fromRepo(){
+      return getJSON(api).then(function(d){ show(d.description); });
+    }
+
+    if(SOURCE === 'repo'){
+      fromRepo().catch(function(){});
+    } else {
+      // Newest release (includes pre-releases); fall back to the repo "About" text.
+      getJSON(api + '/releases?per_page=1')
+        .then(function(list){
+          var d = Array.isArray(list) && list[0];
+          if(d && (d.body || d.name)){ show(d.body || d.name); }
+          else { return fromRepo(); }
+        })
+        .catch(function(){ return fromRepo(); })
+        .catch(function(){});   // give up quietly — keep the block hidden
+    }
   })();
 </script>
 </body>
