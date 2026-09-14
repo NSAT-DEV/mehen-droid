@@ -472,16 +472,20 @@
   // which case the note simply stays hidden. Open the console (F12) to see the
   // real reason if it doesn't appear.
   (function(){
-    var REPO = "nsat-dev/mehen-droid";
-    // Reads the repository's "About" description field (the box on the repo's main page).
-    // To read a Release instead, use ".../releases/latest" and data.body below.
+    var REPO     = "nsat-dev/mehen-droid";
+    var APK_PATH = "Mehen.apk";   // path within the repo; change if the APK moves
+    // Shows the commit message from the most recent commit that changed the APK — i.e. what you
+    // type in the "Commit changes" box when you upload Mehen.apk. Note: GitHub's upload form
+    // has a one-line SUMMARY (default "Add files via upload") plus an optional DESCRIPTION box;
+    // if you leave the default summary and type your text in the description, we show that.
 
     function run(){
       var note = document.getElementById("buildNote");
       var text = document.getElementById("buildNoteText");
       if(!note || !text) return;
 
-      var api = "https://api.github.com/repos/" + REPO;
+      var api = "https://api.github.com/repos/" + REPO +
+                "/commits?path=" + encodeURIComponent(APK_PATH) + "&per_page=1";
 
       fetch(api, { headers: { "Accept": "application/vnd.github+json" } })
         .then(function(r){
@@ -490,11 +494,19 @@
           return r.json();
         })
         .then(function(data){
-          var msg = (data && data.description ? data.description : "").trim();
-          if(!msg){
-            console.info("[Mehen] Repo has no About description — note hidden.");
+          if(!Array.isArray(data) || data.length === 0){
+            console.info("[Mehen] No commit found touching " + APK_PATH + " — note hidden.");
             return;
           }
+          var msg = ((data[0] && data[0].commit && data[0].commit.message) || "").trim();
+          // GitHub's default upload summary is "Add files via upload"; if you left that and
+          // typed your text in the description box, show the description (the part after the
+          // first blank line) instead of the boilerplate summary.
+          if(/^Add files via upload/i.test(msg)){
+            var parts = msg.split(/\n\s*\n/);
+            if(parts.length > 1){ msg = parts.slice(1).join("\n\n").trim(); }
+          }
+          if(!msg){ return; }
           text.textContent = msg;
           note.hidden = false;
         })
