@@ -156,8 +156,13 @@
   .assure li::before{content:"𓂀"; font-family:"Noto Sans Egyptian Hieroglyphs",serif; position:absolute; left:0; color:var(--gold); font-size:.95rem;}
   .assure .dl{margin-top:1.3rem}
 
-  /* dynamic description for Mehen.apk (commit message from GitHub) */
-  #apkDesc{white-space:pre-wrap;}
+  /* dynamic "This build" note for Mehen.apk (commit message from GitHub) */
+  .buildnote{margin-top:18px; max-width:46ch; background:var(--panel);
+    border:1px solid var(--line); border-left:3px solid var(--gold);
+    border-radius:12px; padding:14px 16px;}
+  .buildnote-label{font-family:"Cinzel",serif; font-weight:600; font-size:12px;
+    letter-spacing:.24em; text-transform:uppercase; color:var(--gold);}
+  .buildnote-text{margin-top:6px; font-size:14.5px; color:var(--ink-dim); white-space:pre-line;}
 
   /* history */
   .history{max-width:70ch;}
@@ -225,8 +230,11 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download for Android
         </a>
-        <span class="btn-meta" id="apkDesc"></span>
         <a class="ghost" href="#play">How to play</a>
+      </div>
+      <div class="buildnote" id="buildNote" hidden>
+        <span class="buildnote-label">This build</span>
+        <p class="buildnote-text" id="buildNoteText"></p>
       </div>
     </div>
 
@@ -452,36 +460,57 @@
     els.forEach(function(e){ io.observe(e); });
   })();
 
-  // Show the current description for Mehen.apk, pulled live from GitHub.
-  // The "description" is the commit message you type when you upload / update the
-  // file on GitHub (e.g. "Mehen version 1.5   8-21-2026"). Upload a new copy with
-  // a new message and this line updates on the next page load.
+  // ── "This build" description ──────────────────────────
+  // Shows the commit message of the most recent commit that changed Mehen.apk.
+  // Whatever you type as the commit message when you upload Mehen.apk is what
+  // appears here — e.g. commit the APK with the message "Mehen 3.1 — 9-2026".
+  // It updates automatically on each upload; the page never needs editing.
+  //
+  // Reads GitHub's public API from the visitor's browser. GitHub rate-limits
+  // unauthenticated calls to 60/hour per IP (ample for a landing page); a few
+  // visitors with strict tracking protection may have the request blocked — in
+  // which case the note simply stays hidden. Open the console (F12) to see the
+  // real reason if it doesn't appear.
   (function(){
-    // ---- What to read ----
-    var OWNER     = 'nsat-dev';      // GitHub user / org
-    var REPO      = 'mehen-droid';   // repository name
-    var FILE_PATH = 'Mehen.apk';     // path to the file inside the repo
-    var BRANCH    = '';              // '' = the repo's default branch (main)
+    var REPO     = "nsat-dev/mehen-droid";
+    var APK_PATH = "Mehen.apk";   // path within the repo; change if the APK moves
 
-    var el = document.getElementById('apkDesc');
-    if(!el || !OWNER || !REPO || !FILE_PATH) return;
+    function run(){
+      var note = document.getElementById("buildNote");
+      var text = document.getElementById("buildNoteText");
+      if(!note || !text) return;
 
-    // The newest commit that changed the file — its message is the description.
-    var url = 'https://api.github.com/repos/' + OWNER + '/' + REPO +
-              '/commits?path=' + encodeURIComponent(FILE_PATH) + '&per_page=1' +
-              (BRANCH ? '&sha=' + encodeURIComponent(BRANCH) : '');
+      var api = "https://api.github.com/repos/" + REPO +
+                "/commits?path=" + encodeURIComponent(APK_PATH) + "&per_page=1";
 
-    // no-store avoids showing a stale copy after you upload a new file.
-    fetch(url, { cache:'no-store', headers:{ 'Accept':'application/vnd.github+json' } })
-      .then(function(res){ if(!res.ok){ throw new Error(res.status); } return res.json(); })
-      .then(function(list){
-        var msg = Array.isArray(list) && list[0] && list[0].commit && list[0].commit.message;
-        msg = (msg || '').trim();
-        if(msg){ el.textContent = msg; }   // textContent keeps it safe from HTML injection
-      })
-      .catch(function(){
-        // Couldn't reach GitHub — leave the line empty.
-      });
+      fetch(api, { headers: { "Accept": "application/vnd.github+json" } })
+        .then(function(r){
+          if(r.status === 403){ throw new Error("GitHub API rate limit reached (60/hour)"); }
+          if(!r.ok){ throw new Error("GitHub API returned HTTP " + r.status); }
+          return r.json();
+        })
+        .then(function(data){
+          if(!Array.isArray(data) || data.length === 0){
+            console.info("[Mehen] No commit found touching " + APK_PATH + " — note hidden.");
+            return;
+          }
+          var msg = data[0] && data[0].commit && data[0].commit.message;
+          msg = (msg || "").trim();
+          if(!msg){ return; }
+          text.textContent = msg;   // full message; write a one-line commit for a clean note
+          note.hidden = false;
+        })
+        .catch(function(err){
+          console.warn("[Mehen] Could not load build description:",
+                       err && err.message ? err.message : err);
+        });
+    }
+
+    if(document.readyState === "loading"){
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
   })();
 </script>
 </body>
