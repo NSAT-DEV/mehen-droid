@@ -368,7 +368,7 @@
       <p>Game design and rules reconstruction by James F. R. Masters (2024). Hieroglyphs set in Noto Sans Egyptian Hieroglyphs, under the SIL Open Font License.</p>
     </div>
     <div style="text-align:right">
-      <div class="ver">Version 3.0.1 · Android 7.0+</div>
+      <div class="ver">Version <span class="apk-ver">2.3</span> · Android 7.0+</div>
       <p style="margin-left:auto"><a href="https://github.com/nsat-dev/mehen-droid/releases/latest/download/Mehen.apk" download>Download the APK</a></p>
     </div>
   </div>
@@ -406,6 +406,25 @@
   (function(){
     var REPO     = "nsat-dev/mehen-droid";
 
+    // Also fills in the version shown at the bottom of the page.
+    function fillFromRelease(rel){
+      // Fills every .apk-ver / .apk-size on the page from the latest release.
+      function releaseVersion(rel){
+        // The version is the number at the end of the release tag (e.g. "App-v2.4" -> "2.4"),
+        // or failing that, the first version number in the release title.
+        var t = (rel.tag_name || "").match(/\d+(?:\.\d+)+/g);
+        if (t) return t[t.length - 1];
+        var n = (rel.name || "").replace(/\s+/g, "").match(/\d+(?:\.\d+)+/);
+        return n ? n[0] : "";
+      }
+      var v = releaseVersion(rel);
+      if (v) document.querySelectorAll(".apk-ver").forEach(function(e){ e.textContent = v; });
+      var a = (rel.assets || []).filter(function(x){ return x.name === "Mehen.apk"; })[0];
+      if (a && a.size) document.querySelectorAll(".apk-size").forEach(function(e){
+        e.textContent = Math.round(a.size / 1000000) + "\u00a0MB";
+      });
+    }
+
     function run(){
       var note = document.getElementById("buildNote");
       var text = document.getElementById("buildNoteText");
@@ -421,6 +440,7 @@
           return r.json();
         })
         .then(function(data){
+          if(data){ fillFromRelease(data); }
           // The release description, or its title if the description is empty.
           var msg = ((data && data.body) || "").trim() || ((data && data.name) || "").trim();
           if(!msg){ return; }
