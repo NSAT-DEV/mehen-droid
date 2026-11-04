@@ -229,7 +229,7 @@
       <p class="subtitle">Game of the Snake</p>
       <p class="lede">The coiled serpent board, reborn for Android. Hide marbles in your fist, make your rival guess, and march your <b>pharaohs</b> along the snake toward <b>Ra</b> at the center.</p>
       <div class="cta-row">
-        <a class="btn" href="Mehen.apk" download>
+        <a class="btn" href="https://github.com/nsat-dev/mehen-droid/releases/latest/download/Mehen.apk" download>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download for Android
         </a>
@@ -341,7 +341,7 @@
           <li>Single-player works fully offline; online play is optional</li>
           <li>Sound is optional — the game speaks in gentle tones either way</li>
         </ul>
-        <a class="btn dl" href="Mehen.apk" download>
+        <a class="btn dl" href="https://github.com/nsat-dev/mehen-droid/releases/latest/download/Mehen.apk" download>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4 6.3 11.7l1.4-1.4L11 13.6V3h1zM5 19h14v2H5z"/></svg>
           Download Mehen.apk
         </a>
@@ -369,7 +369,7 @@
     </div>
     <div style="text-align:right">
       <div class="ver">Version 3.0.1 · Android 7.0+</div>
-      <p style="margin-left:auto"><a href="Mehen.apk" download>Download the APK</a></p>
+      <p style="margin-left:auto"><a href="https://github.com/nsat-dev/mehen-droid/releases/latest/download/Mehen.apk" download>Download the APK</a></p>
     </div>
   </div>
 </footer>
@@ -393,10 +393,10 @@
   })();
 
   // ── "This build" description ──────────────────────────
-  // Shows the commit message of the most recent commit that changed Mehen.apk.
-  // Whatever you type as the commit message when you upload Mehen.apk is what
-  // appears here — e.g. commit the APK with the message "Mehen 3.1 — 9-2026".
-  // It updates automatically on each upload; the page never needs editing.
+  // Shows the notes of the latest GitHub release (the download buttons serve
+  // that release's Mehen.apk). To publish a new version: create a release,
+  // attach the APK named exactly Mehen.apk, and write the description you want
+  // shown here — e.g. "Mehen 3.1 — 9-2026". The page never needs editing.
   //
   // Reads GitHub's public API from the visitor's browser. GitHub rate-limits
   // unauthenticated calls to 60/hour per IP (ample for a landing page); a few
@@ -405,19 +405,14 @@
   // real reason if it doesn't appear.
   (function(){
     var REPO     = "nsat-dev/mehen-droid";
-    var APK_PATH = "Mehen.apk";   // path within the repo; change if the APK moves
-    // Shows the commit message from the most recent commit that changed the APK — i.e. what you
-    // type in the "Commit changes" box when you upload Mehen.apk. Note: GitHub's upload form
-    // has a one-line SUMMARY (default "Add files via upload") plus an optional DESCRIPTION box;
-    // if you leave the default summary and type your text in the description, we show that.
 
     function run(){
       var note = document.getElementById("buildNote");
       var text = document.getElementById("buildNoteText");
       if(!note || !text) return;
 
-      var api = "https://api.github.com/repos/" + REPO +
-                "/commits?path=" + encodeURIComponent(APK_PATH) + "&per_page=1";
+      // Notes of the latest GitHub release: the download buttons serve that release's Mehen.apk.
+      var api = "https://api.github.com/repos/" + REPO + "/releases/latest";
 
       fetch(api, { headers: { "Accept": "application/vnd.github+json" } })
         .then(function(r){
@@ -426,18 +421,8 @@
           return r.json();
         })
         .then(function(data){
-          if(!Array.isArray(data) || data.length === 0){
-            console.info("[Mehen] No commit found touching " + APK_PATH + " — note hidden.");
-            return;
-          }
-          var msg = ((data[0] && data[0].commit && data[0].commit.message) || "").trim();
-          // GitHub's default upload summary is "Add files via upload"; if you left that and
-          // typed your text in the description box, show the description (the part after the
-          // first blank line) instead of the boilerplate summary.
-          if(/^Add files via upload/i.test(msg)){
-            var parts = msg.split(/\n\s*\n/);
-            if(parts.length > 1){ msg = parts.slice(1).join("\n\n").trim(); }
-          }
+          // The release description, or its title if the description is empty.
+          var msg = ((data && data.body) || "").trim() || ((data && data.name) || "").trim();
           if(!msg){ return; }
           text.textContent = msg;
           note.hidden = false;
