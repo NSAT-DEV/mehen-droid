@@ -224,6 +224,7 @@
     .stone,.piece,.ra-halo,.hero-copy>*,.snake-tail,.scales,.snake-head{animation:none; opacity:1; transform:none}
     .reveal{opacity:1; transform:none; transition:none}
   }
+  [data-rel][hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -394,7 +395,7 @@
       <p>Game design and rules reconstruction by James F. R. Masters (2024). Hieroglyphs set in Noto Sans Egyptian Hieroglyphs, under the SIL Open Font License.</p>
     </div>
     <div style="text-align:right">
-      <div class="ver">Version <span class="apk-ver">2.3</span> · Android 7.0+</div>
+      <div class="ver"><span data-rel="ver" hidden>Version <span class="apk-ver"></span> · </span>Android 7.0+</div>
       <p style="margin-left:auto"><a href="https://github.com/nsat-dev/mehen-droid/releases/latest/download/Mehen.apk" download>Download the APK</a></p>
       <p style="margin-left:auto">Also for <a href="https://nsat-dev.github.io/mehen/">iPhone &amp; iPad</a> &middot; <a href="https://nsat-dev.github.io/mehendesktop/">Desktop</a></p>
     </div>
@@ -445,7 +446,8 @@
         return n ? n[0] : "";
       }
       var v = releaseVersion(rel);
-      if (v) document.querySelectorAll(".apk-ver").forEach(function(e){ e.textContent = v; });
+      if (v) { document.querySelectorAll(".apk-ver").forEach(function(e){ e.textContent = v; });
+        document.querySelectorAll('[data-rel="ver"]').forEach(function(e){ e.hidden = false; }); }
       var a = (rel.assets || []).filter(function(x){ return x.name === "Mehen.apk"; })[0];
       if (a && a.size) document.querySelectorAll(".apk-size").forEach(function(e){
         e.textContent = Math.round(a.size / 1000000) + "\u00a0MB";
